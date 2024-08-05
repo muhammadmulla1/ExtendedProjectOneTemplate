@@ -41,7 +41,7 @@ class ApplicationController @Inject()(
     request.body.validate[DataModel] match {
       case JsSuccess(dataModel, _) =>
         dataRepository.create(dataModel).map(_ => Created)
-      case JsError(_) => Future.successful(BadRequest)
+      case JsError(_) => Future(BadRequest)
     }
   }
 
