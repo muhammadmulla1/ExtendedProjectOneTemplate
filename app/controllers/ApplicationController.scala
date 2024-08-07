@@ -1,17 +1,20 @@
 package controllers
 
-import models.DataModel
+import models.{Book, DataModel}
 import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import repositories.DataRepository
+import services.LibraryService
 
 @Singleton
 class ApplicationController @Inject()(
                                        val controllerComponents: ControllerComponents,
                                        val dataRepository: DataRepository,
-                                       implicit val ec: ExecutionContext) extends BaseController {
+                                       val service: LibraryService, // Add this line to inject the service
+                                       implicit val ec: ExecutionContext
+                                     ) extends BaseController {
 
   def index(): Action[AnyContent] = Action.async { implicit request =>
     dataRepository.index().map {
@@ -53,6 +56,14 @@ class ApplicationController @Inject()(
           case None => NotFound(s"No resource found with id: $id")
         }
       case JsError(_) => Future.successful(BadRequest)
+    }
+  }
+
+  def getGoogleBook(search: String, term: String): Action[AnyContent] = Action.async { implicit request =>
+    service.getGoogleBook(search = search, term = term).map {
+      case book => Ok(Json.toJson(DataModel))
+    }.recover {
+      case e: Exception => InternalServerError("Error fetching data from Google Books API")
     }
   }
 }
