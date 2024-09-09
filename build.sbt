@@ -23,3 +23,13 @@ libraryDependencies ++= Seq(
 libraryDependencies += "com.typesafe.play" %% "play-ws" % "2.8.8"
 libraryDependencies += ("org.typelevel"                %% "cats-core"                 % "2.3.0")
 libraryDependencies += ws
+  "org.scalatestplus.play" %% "scalatestplus-play"   % "5.1.0"          % Test
+)
+
+libraryDependencies ++= Seq(
+  "uk.gov.hmrc.mongo"      %% "hmrc-mongo-play-28"   % "0.63.0",
+  guice,
+  "org.scalatest"          %% "scalatest"               % "3.2.15"             % Test,
+  "org.scalamock"          %% "scalamock"               % "5.2.0"             % Test,
+  "org.scalatestplus.play" %% "scalatestplus-play"   % "5.1.0"          % Test
+)
