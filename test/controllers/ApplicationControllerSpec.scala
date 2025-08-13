@@ -95,13 +95,10 @@ class ApplicationControllerSpec extends BaseSpecWithApplication {
   "ApplicationController .delete" should {
 
     "return 202 Accepted with an empty body if the deletion is successful" in {
-      // Prepare test data
       val testDataModel = DataModel("1", "Test Name", "A description", 300)
 
-      // Insert the test data into the repository
       repository.create(testDataModel).futureValue
 
-      // Call the delete action
       val result = TestApplicationController.delete("1")(FakeRequest())
       status(result) shouldBe Status.ACCEPTED
       contentAsString(result) shouldBe "" // Ensure empty body
