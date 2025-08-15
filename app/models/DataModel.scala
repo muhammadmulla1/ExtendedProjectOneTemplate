@@ -2,13 +2,11 @@ package models
 
 import play.api.libs.json.{Json, OFormat}
 
-case class DataModel(
-                      id: String,
-                      title: String,
-                      author: String,
-                      publishedYear: Int
-                    )
+case class DataModel(_id: String,
+                     name: String,
+                     description: String,
+                     pageCount: Int)
 
 object DataModel {
-  implicit val format: OFormat[DataModel] = Json.format[DataModel]
+  implicit val formats: OFormat[DataModel] = Json.format[DataModel]
 }

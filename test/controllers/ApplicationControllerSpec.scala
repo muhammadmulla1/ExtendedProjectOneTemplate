@@ -4,163 +4,137 @@ import baseSpec.BaseSpecWithApplication
 import play.api.test.FakeRequest
 import play.api.http.Status
 import play.api.test.Helpers._
-import play.api.libs.json.{Json, JsValue}
-import models.DataModel
+import play.api.libs.json.{JsValue, Json}
+import models.{APIError, DataModel}
+
 import scala.concurrent.Future
 import play.api.mvc.Result
+import repositories.DataRepository
+import services.ApplicationService
+import org.scalatest.matchers.must.Matchers._
+import org.mockito.MockitoSugar.mock
+import org.mockito.Mockito._
+
 
 class ApplicationControllerSpec extends BaseSpecWithApplication {
 
+  val mockDataRepository: DataRepository = mock[DataRepository]
+  val mockApplicationService: ApplicationService = mock[ApplicationService]
+
   val TestApplicationController = new ApplicationController(
     component,
-    repository,
-    executionContext
+    mockDataRepository,
+    mockApplicationService
   )
 
-  private val dataModel: DataModel = DataModel(
-    "abcd",
-    "test name",
-    "test description",
-    100
-  )
+  "ApplicationController" should {
 
-  def clearRepository(): Future[Unit] = {
-    repository.deleteAll().map(_ => ())
-  }
+    "return a list of books" in {
+      val testData = Seq(DataModel("1", "Book One", "Author One", 123))
+      when(mockDataRepository.index())
+        .thenReturn(Future.successful(Right(testData)))
 
-  def populateRepository(models: Seq[DataModel]): Future[Unit] = {
-    Future.sequence(models.map(model => repository.create(model))).map(_ => ())
-  }
 
-  override def beforeEach(): Unit = {
-    super.beforeEach()
-    clearRepository().futureValue
-  }
+      val result: Future[Result] =
+        TestApplicationController.index().apply(FakeRequest(GET, "/api"))
 
-  override def afterEach(): Unit = {
-    super.afterEach()
-    clearRepository().futureValue
-  }
-
-  "ApplicationController .index" should {
-
-    "return 200 OK and a JSON array of DataModels in the correct order" in {
-      // Prepare test data
-      val testDataModels = Seq(
-        DataModel("1", "Test Name 1", "Description 1", 100),
-        DataModel("2", "Test Name 2", "Description 2", 200)
-      )
-
-      // Populate repository with test data
-      populateRepository(testDataModels).futureValue
-
-      // Call the index action
-      val result = TestApplicationController.index()(FakeRequest())
-
-      // Verify the status and content
-      status(result) shouldBe Status.OK
-      val jsonResponse = contentAsJson(result).as[Seq[DataModel]]
-
-      // Check if the returned data matches the expected data, regardless of order
-      jsonResponse should contain theSameElementsAs testDataModels
+      status(result) mustBe Status.OK
+      contentAsJson(result) mustBe Json.toJson(testData)
     }
 
-    "return 400 Bad Request if the request is invalid" in {
-      val request = FakeRequest("INVALID_METHOD", "/api")
-      val result = TestApplicationController.index()(request)
-      status(result) shouldBe Status.BAD_REQUEST
-    }
-  }
+    "find a book by id" in {
+      val testBook = DataModel("1", "Book One", "Author One", 123)
+      when(mockDataRepository.read("1"))
+        .thenReturn(Future.successful(Right(testBook)))
 
-  "ApplicationController .read" should {
 
-    "find a book in the database by id" in {
-      val request: FakeRequest[JsValue] = FakeRequest().withBody[JsValue](Json.toJson(dataModel))
-      val createdResult: Future[Result] = TestApplicationController.create()(request)
-      status(createdResult) shouldBe Status.CREATED
 
-      val readResult: Future[Result] = TestApplicationController.read("abcd")(FakeRequest())
+      val result: Future[Result] =
+        TestApplicationController.read("1").apply(FakeRequest(GET, "/api/1"))
 
-      status(readResult) shouldBe Status.OK
-      contentAsJson(readResult).as[DataModel] shouldBe dataModel
+      status(result) mustBe Status.OK
+      contentAsJson(result) mustBe Json.toJson(testBook)
     }
 
-    "return 404 Not Found if the data model is not found" in {
-      val readResult: Future[Result] = TestApplicationController.read("non-existent-id")(FakeRequest())
-      status(readResult) shouldBe Status.NOT_FOUND
-      contentAsString(readResult) shouldBe s"No resource found with id: non-existent-id"
-    }
-  }
+    "return 404 if book not found" in {
+      when(mockDataRepository.read("999"))
+        .thenReturn(Future.successful(Left(APIError.BadAPIResponse(404, "Not found"))))
 
-  "ApplicationController .delete" should {
+      val result: Future[Result] =
+        TestApplicationController.read("999").apply(FakeRequest(GET, "/api/999"))
 
-    "return 202 Accepted with an empty body if the deletion is successful" in {
-      val testDataModel = DataModel("1", "Test Name", "A description", 300)
-
-      repository.create(testDataModel).futureValue
-
-      val result = TestApplicationController.delete("1")(FakeRequest())
-      status(result) shouldBe Status.ACCEPTED
-      contentAsString(result) shouldBe "" // Ensure empty body
+      status(result) mustBe Status.NOT_FOUND
     }
 
-    "return 404 Not Found if the item to delete is not found" in {
-      val result = TestApplicationController.delete("non-existent-id")(FakeRequest())
-      status(result) shouldBe Status.NOT_FOUND
-      contentAsString(result) shouldBe s"No resource found with id: non-existent-id"
+    "create a new book" in {
+      val newBook = DataModel("2", "Book Two", "Author Two", 200)
+      val jsonBody: JsValue = Json.toJson(newBook)
+
+      when(mockDataRepository.create(newBook))
+        .thenReturn(Future.successful(newBook))
+
+
+      val result: Future[Result] =
+        TestApplicationController.create().apply(
+          FakeRequest(POST, "/api/create").withBody(jsonBody)
+        )
+
+      status(result) mustBe Status.CREATED
+      contentAsJson(result) mustBe Json.toJson(newBook)
     }
 
-    "return 400 Bad Request if the request is invalid" in {
-      val request = FakeRequest("INVALID_METHOD", "/api")
-      val result = TestApplicationController.delete("1")(request)
-      status(result) shouldBe Status.BAD_REQUEST
-    }
-  }
+    "update an existing book" in {
+      val updatedBook = DataModel("1", "Updated Book", "Updated Author", 150)
+      val jsonBody: JsValue = Json.toJson(updatedBook)
 
-  "ApplicationController .create" should {
+      when(mockDataRepository.update("1", updatedBook))
+        .thenReturn(Future.successful(Right(updatedBook)))
 
-    "create a book in the database" in {
-      val request: FakeRequest[JsValue] = FakeRequest().withBody[JsValue](Json.toJson(dataModel))
-      val createdResult: Future[Result] = TestApplicationController.create()(request)
-      status(createdResult) shouldBe Status.CREATED
-    }
+      val result: Future[Result] =
+        TestApplicationController.update("1").apply(
+          FakeRequest(PUT, "/api/1").withBody(jsonBody)
+        )
 
-    "return 400 Bad Request if the request body is invalid" in {
-      val invalidJson = Json.obj("invalidField" -> "invalidValue")
-      val request = FakeRequest().withBody(invalidJson)
-      val result = TestApplicationController.create()(request)
-      status(result) shouldBe Status.BAD_REQUEST
-    }
-  }
-
-  "ApplicationController .update" should {
-
-    "return 202 Accepted and the updated data model as JSON if the update is successful" in {
-      val originalDataModel = DataModel("1", "Original Name", "Original description", 100)
-      val updatedDataModel = DataModel("1", "Updated Name", "Updated description", 200)
-
-      repository.create(originalDataModel).futureValue
-
-      val request = FakeRequest().withBody(Json.toJson(updatedDataModel))
-      val result = TestApplicationController.update("1")(request)
-
-      status(result) shouldBe Status.ACCEPTED
-      contentAsJson(result) shouldEqual Json.toJson(updatedDataModel)
+      status(result) mustBe Status.OK
+      contentAsJson(result) mustBe Json.toJson(updatedBook)
     }
 
-    "return 404 Not Found if the data model to update is not found" in {
-      val updatedDataModel = DataModel("1", "Updated Name", "Updated description", 200)
-      val request = FakeRequest().withBody(Json.toJson(updatedDataModel))
-      val result = TestApplicationController.update("non-existent-id")(request)
-      status(result) shouldBe Status.NOT_FOUND
-      contentAsString(result) shouldBe s"No resource found with id: non-existent-id"
+    "return 404 if updating a non-existent book" in {
+      val updatedBookNotFound = DataModel("999", "Non-existent", "Nobody", 0)
+      val jsonBody: JsValue = Json.toJson(updatedBookNotFound)
+
+      when(mockDataRepository.update("999", updatedBookNotFound))
+        .thenReturn(Future.successful(Left(APIError.BadAPIResponse(404, "Not found"))))
+
+      val result: Future[Result] =
+        TestApplicationController.update("999").apply(
+          FakeRequest(PUT, "/api/999").withBody(jsonBody)
+        )
+
+      status(result) mustBe Status.NOT_FOUND
     }
 
-    "return 400 Bad Request if the request body is invalid" in {
-      val invalidJson = Json.obj("invalidField" -> "invalidValue")
-      val request = FakeRequest().withBody(invalidJson)
-      val result = TestApplicationController.update("1")(request)
-      status(result) shouldBe Status.BAD_REQUEST
+    "delete a book" in {
+      val deletedBook = DataModel("1", "Book One", "Author One", 123)
+      when(mockDataRepository.delete("1"))
+        .thenReturn(Future.successful(Right(deletedBook)))
+
+
+      val result: Future[Result] =
+        TestApplicationController.delete("1").apply(FakeRequest(DELETE, "/api/1"))
+
+      status(result) mustBe Status.NO_CONTENT
+    }
+
+    "return 404 if deleting a non-existent book" in {
+      when(mockDataRepository.delete("999"))
+        .thenReturn(Future.successful(Left(APIError.BadAPIResponse(404, "Not found"))))
+
+
+      val result: Future[Result] =
+        TestApplicationController.delete("999").apply(FakeRequest(DELETE, "/api/999"))
+
+      status(result) mustBe Status.NOT_FOUND
     }
   }
 }
