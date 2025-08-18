@@ -1,0 +1,9 @@
+@(book: models.Book)
+
+@main("Book Details") {
+<div class="container">
+    <h2>@book.name</h2>
+    <p>@book.description</p>
+    <p>Pages: @book.pageCount</p>
+</div>
+}

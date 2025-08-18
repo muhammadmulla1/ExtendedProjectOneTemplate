@@ -13,9 +13,8 @@ class ApplicationController @Inject()(
                                        val controllerComponents: ControllerComponents,
                                        val dataRepository: DataRepository,
                                        val service: ApplicationService)
-                                       (implicit val ec: ExecutionContext)
-                                      extends BaseController {
-
+                                     (implicit val ec: ExecutionContext)
+  extends BaseController {
 
   def index(): Action[AnyContent] = Action.async { implicit request =>
     dataRepository.index().map {
@@ -39,38 +38,32 @@ class ApplicationController @Inject()(
     }
   }
 
-  def read(id: String) = Action.async {
+  def read(id: String): Action[AnyContent] = Action.async {
     dataRepository.read(id).map {
       case Right(book) => Ok(Json.toJson(book))
-      case Left(APIError.BadAPIResponse(status, message)) => Status(status)(message)
+      case Left(error) => Status(error.httpResponseStatus)(Json.toJson(error.reason))
     }
   }
 
-
-
-
-  def update(id: String) = Action.async(parse.json) { request =>
+  def update(id: String): Action[JsValue] = Action.async(parse.json) { request =>
     val book = request.body.as[DataModel]
     dataRepository.update(id, book).map {
       case Right(updated) => Ok(Json.toJson(updated))
-      case Left(err) => Status(err.upstreamStatus)(err.upstreamMessage)
+      case Left(err) => Status(err.httpResponseStatus)(Json.toJson(err.reason))
     }
   }
 
-
-  def delete(id: String) = Action.async { implicit request =>
+  def delete(id: String): Action[AnyContent] = Action.async { implicit request =>
     dataRepository.delete(id).map {
       case Right(_) => NoContent
-      case Left(err) => Status(err.upstreamStatus)(err.upstreamMessage)
+      case Left(err) => Status(err.httpResponseStatus)(Json.toJson(err.reason))
     }
   }
 
-  def getGoogleBook(search: String, term: String): Action[AnyContent] = Action.async { implicit request =>
-    service.getGoogleBook(search = search, term = term).value.map {
-      case Right(book) => Ok(Json.toJson(book))
-      case Left(error) => Status(error.httpResponseStatus)(Json.toJson(error.reason))
-    }.recover {
-      case ex => InternalServerError(Json.obj("status" -> "error", "message" -> ex.getMessage))
+  def getGoogleBook(search: String) = Action.async { implicit request =>
+    service.getGoogleBook(search).value.map {
+      case Right(book) => Ok(views.html.bookDisplay(book))
+      case Left(error) => Status(error.httpResponseStatus)(error.reason)
     }
   }
 }

@@ -6,7 +6,6 @@ import play.api.http.Status
 import play.api.test.Helpers._
 import play.api.libs.json.{JsValue, Json}
 import models.{APIError, DataModel}
-
 import scala.concurrent.Future
 import play.api.mvc.Result
 import repositories.DataRepository
@@ -14,7 +13,6 @@ import services.ApplicationService
 import org.scalatest.matchers.must.Matchers._
 import org.mockito.MockitoSugar.mock
 import org.mockito.Mockito._
-
 
 class ApplicationControllerSpec extends BaseSpecWithApplication {
 
@@ -34,7 +32,6 @@ class ApplicationControllerSpec extends BaseSpecWithApplication {
       when(mockDataRepository.index())
         .thenReturn(Future.successful(Right(testData)))
 
-
       val result: Future[Result] =
         TestApplicationController.index().apply(FakeRequest(GET, "/api"))
 
@@ -46,8 +43,6 @@ class ApplicationControllerSpec extends BaseSpecWithApplication {
       val testBook = DataModel("1", "Book One", "Author One", 123)
       when(mockDataRepository.read("1"))
         .thenReturn(Future.successful(Right(testBook)))
-
-
 
       val result: Future[Result] =
         TestApplicationController.read("1").apply(FakeRequest(GET, "/api/1"))
@@ -73,11 +68,8 @@ class ApplicationControllerSpec extends BaseSpecWithApplication {
       when(mockDataRepository.create(newBook))
         .thenReturn(Future.successful(newBook))
 
-
       val result: Future[Result] =
-        TestApplicationController.create().apply(
-          FakeRequest(POST, "/api/create").withBody(jsonBody)
-        )
+        TestApplicationController.create().apply(FakeRequest(POST, "/api/create").withBody(jsonBody))
 
       status(result) mustBe Status.CREATED
       contentAsJson(result) mustBe Json.toJson(newBook)
@@ -91,9 +83,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication {
         .thenReturn(Future.successful(Right(updatedBook)))
 
       val result: Future[Result] =
-        TestApplicationController.update("1").apply(
-          FakeRequest(PUT, "/api/1").withBody(jsonBody)
-        )
+        TestApplicationController.update("1").apply(FakeRequest(PUT, "/api/1").withBody(jsonBody))
 
       status(result) mustBe Status.OK
       contentAsJson(result) mustBe Json.toJson(updatedBook)
@@ -107,9 +97,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication {
         .thenReturn(Future.successful(Left(APIError.BadAPIResponse(404, "Not found"))))
 
       val result: Future[Result] =
-        TestApplicationController.update("999").apply(
-          FakeRequest(PUT, "/api/999").withBody(jsonBody)
-        )
+        TestApplicationController.update("999").apply(FakeRequest(PUT, "/api/999").withBody(jsonBody))
 
       status(result) mustBe Status.NOT_FOUND
     }
@@ -118,7 +106,6 @@ class ApplicationControllerSpec extends BaseSpecWithApplication {
       val deletedBook = DataModel("1", "Book One", "Author One", 123)
       when(mockDataRepository.delete("1"))
         .thenReturn(Future.successful(Right(deletedBook)))
-
 
       val result: Future[Result] =
         TestApplicationController.delete("1").apply(FakeRequest(DELETE, "/api/1"))
@@ -129,7 +116,6 @@ class ApplicationControllerSpec extends BaseSpecWithApplication {
     "return 404 if deleting a non-existent book" in {
       when(mockDataRepository.delete("999"))
         .thenReturn(Future.successful(Left(APIError.BadAPIResponse(404, "Not found"))))
-
 
       val result: Future[Result] =
         TestApplicationController.delete("999").apply(FakeRequest(DELETE, "/api/999"))
